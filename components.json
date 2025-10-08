@@ -1,0 +1,14 @@
+{
+  "style": "default",
+  "tailwind": {
+    "css": "admin/src/index.css",
+    "baseColor": "zinc",
+    "cssVariables": true
+  },
+  "rsc": false,
+  "tsx": true,
+  "aliases": {
+    "utils": "admin/src/lib/utils",
+    "components": "admin/src/components"
+  }
+}

@@ -1,0 +1,53 @@
+# Development and build files
+/.git
+/.github
+/.vscode
+/.claude
+node_modules
+coverage
+.phpunit.result.cache
+.DS_Store
+
+# Configuration files
+/.gitignore
+/.gitattributes
+/.wp-env.json
+/.semgrepignore
+/.mcp.json
+/phpunit.xml.dist
+/phpstan.neon
+/vitest.config.ts
+/vite.config.js
+/jsconfig.json
+/tsconfig.json
+/components.json
+
+# Package management
+/package.json
+/package-lock.json
+/composer.lock
+
+# Documentation and guides
+/CLAUDE.MD
+/CONTRIBUTING.md
+
+# Test files
+/tests
+/admin/src/__tests__
+/var
+
+# Scripts
+/scripts
+
+# Source files (keep only built output)
+/admin/src
+
+# Vendor dev dependencies (production deps will be reinstalled)
+/vendor
+
+# Build artifacts to exclude
+*.map
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

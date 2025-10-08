@@ -1,0 +1,176 @@
+/**
+ * Uninstall Prompt Dialog Styles
+ */
+
+/* Modal Overlay */
+.dwt-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: dwtFadeIn 0.2s ease-in-out;
+}
+
+@keyframes dwtFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Modal Container */
+.dwt-modal {
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: auto;
+    animation: dwtSlideIn 0.3s ease-out;
+}
+
+@keyframes dwtSlideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Modal Header */
+.dwt-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #ddd;
+}
+
+.dwt-modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+/* Modal Content */
+.dwt-modal-content {
+    padding: 24px;
+}
+
+.dwt-modal-content p {
+    margin: 0 0 16px;
+    color: #50575e;
+    line-height: 1.6;
+}
+
+.dwt-modal-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Uninstall Options */
+.dwt-uninstall-options {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.dwt-option-card {
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+    border: 2px solid #dcdcde;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fff;
+}
+
+.dwt-option-card:hover {
+    border-color: #2271b1;
+    background: #f6f7f7;
+}
+
+.dwt-option-card input[type="radio"] {
+    margin: 4px 12px 0 0;
+    flex-shrink: 0;
+}
+
+.dwt-option-card input[type="radio"]:checked ~ .dwt-option-content {
+    color: #1d2327;
+}
+
+.dwt-option-card:has(input[type="radio"]:checked) {
+    border-color: #2271b1;
+    background: #f0f6fc;
+}
+
+.dwt-option-content {
+    flex: 1;
+    color: #50575e;
+}
+
+.dwt-option-content strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: #1d2327;
+}
+
+.dwt-option-content p {
+    margin: 0;
+    font-size: 13px;
+    color: #646970;
+}
+
+/* Modal Footer */
+.dwt-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    background: #f6f7f7;
+}
+
+.dwt-modal-footer .button {
+    height: 36px;
+    padding: 0 16px;
+}
+
+.dwt-confirm-delete .spinner {
+    margin: 0 0 0 8px;
+    float: none;
+}
+
+/* Responsive */
+@media screen and (max-width: 640px) {
+    .dwt-modal {
+        width: 95%;
+        margin: 20px;
+    }
+
+    .dwt-modal-header,
+    .dwt-modal-content,
+    .dwt-modal-footer {
+        padding: 16px;
+    }
+
+    .dwt-uninstall-options {
+        gap: 8px;
+    }
+
+    .dwt-option-card {
+        padding: 12px;
+    }
+}

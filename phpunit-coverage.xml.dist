@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         beStrictAboutOutputDuringTests="true"
+         beStrictAboutTodoAnnotatedTests="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         verbose="true"
+         processIsolation="true">
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <directory>tests/unit</directory>
+            <exclude>tests/integration</exclude>
+        </testsuite>
+    </testsuites>
+
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
+            <directory>vendor</directory>
+            <directory>tests</directory>
+            <directory>build</directory>
+            <directory>admin</directory>
+            <directory>src/CLI</directory>
+            <file>src/index.php</file>
+            <file>src/Modules/index.php</file>
+        </exclude>
+        <report>
+            <html outputDirectory="coverage/html"/>
+            <text outputFile="php://stdout" showUncoveredFiles="false"/>
+        </report>
+    </coverage>
+
+    <php>
+        <const name="PHPUNIT_RUNNING" value="true"/>
+        <env name="WP_DEBUG" value="true"/>
+        <env name="WP_DEBUG_LOG" value="false"/>
+        <ini name="xdebug.mode" value="coverage"/>
+        <ini name="xdebug.start_with_request" value="no"/>
+    </php>
+</phpunit>

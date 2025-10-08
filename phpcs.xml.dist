@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<ruleset name="Local Font Manager for WP">
+    <description>PHP Coding Standards for the Local Font Manager for WP plugin.</description>
+
+    <file>./src</file>
+    <file>./dwt-localfonts.php</file>
+    <file>./uninstall.php</file>
+
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/strauss/*</exclude-pattern>
+
+    <arg name="extensions" value="php"/>
+    <arg name="encoding" value="utf-8"/>
+    <arg value="sp"/>
+
+    <rule ref="WordPress">
+        <exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+        <exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+    </rule>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="dwt-local-fonts"/>
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="Squiz.Commenting.FunctionComment.IncorrectTypeHint">
+        <exclude-pattern>*/src/Abstracts/RestController.php</exclude-pattern>
+        <exclude-pattern>*/src/Modules/BackupExport.php</exclude-pattern>
+        <exclude-pattern>*/src/Modules/FontManager.php</exclude-pattern>
+        <exclude-pattern>*/src/Modules/Settings.php</exclude-pattern>
+        <exclude-pattern>*/src/Controllers/FontRestController.php</exclude-pattern>
+    </rule>
+
+</ruleset>
