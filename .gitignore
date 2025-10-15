@@ -13,6 +13,7 @@ wp-content/cache/supercache/
 # Serverless directories
 .serverless/
 
+
 # OS generated files
 .DS_Store
 .DS_Store?
