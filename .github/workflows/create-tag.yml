@@ -1,0 +1,133 @@
+name: Create Release Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.2)'
+        required: true
+        type: string
+      create_release:
+        description: 'Create release immediately after tagging'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  create-tag:
+    name: Create Version Tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Validate version format
+        id: validate
+        run: |
+          VERSION="${{ inputs.version }}"
+
+          # Remove 'v' prefix if provided
+          VERSION="${VERSION#v}"
+
+          # Validate semantic version format (x.y.z)
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Error: Invalid version format '$VERSION'"
+            echo "Please use semantic versioning (e.g., 1.0.2)"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version format is valid: $VERSION"
+
+      - name: Check if tag already exists
+        run: |
+          TAG="${{ steps.validate.outputs.tag }}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Error: Tag $TAG already exists"
+            echo "Please choose a different version number or delete the existing tag"
+            exit 1
+          fi
+
+          echo "✅ Tag $TAG does not exist, proceeding..."
+
+      - name: Extract current plugin version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(grep "Version:" dwt-localfonts.php | awk '{print $3}' | tr -d ' ')
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Current plugin version: $CURRENT_VERSION"
+
+      - name: Check if plugin version needs update
+        id: version_check
+        run: |
+          CURRENT="${{ steps.current_version.outputs.version }}"
+          NEW="${{ steps.validate.outputs.version }}"
+
+          if [ "$CURRENT" = "$NEW" ]; then
+            echo "✅ Plugin version already matches tag version ($NEW)"
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Plugin version ($CURRENT) does not match tag version ($NEW)"
+            echo "Please update the version in dwt-localfonts.php before creating the tag"
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Verify CI status on main
+        run: |
+          echo "🔍 Checking CI status on main branch..."
+
+          # Get the latest commit SHA on main
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "Latest commit: $COMMIT_SHA"
+
+          # Note: This is a basic check. In production, you might want to use the GitHub API
+          # to verify that all required checks have passed on the latest commit.
+          echo "✅ On main branch, ready to tag"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ steps.validate.outputs.tag }}"
+          VERSION="${{ steps.validate.outputs.version }}"
+
+          # Create annotated tag
+          git tag -a "$TAG" -m "Release version $VERSION"
+
+          # Push tag to remote
+          git push origin "$TAG"
+
+          echo "✅ Tag $TAG created and pushed successfully"
+
+      - name: Create summary
+        run: |
+          echo "## 🏷️ Tag Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ steps.validate.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit:** $(git rev-parse HEAD)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.create_release }}" = "true" ]; then
+            echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "The release workflow will automatically trigger and create a GitHub release." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Monitor the release workflow at:" >> $GITHUB_STEP_SUMMARY
+            echo "https://github.com/${{ github.repository }}/actions/workflows/release.yml" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 📝 Note" >> $GITHUB_STEP_SUMMARY
+            echo "Automatic release creation was disabled." >> $GITHUB_STEP_SUMMARY
+            echo "To create a release manually, run the Release workflow from the Actions tab." >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,118 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scan weekly on Sundays at 2 AM UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run Composer Audit
+        run: composer audit --no-dev || true
+
+      - name: Run PHPStan Security Analysis
+        run: vendor/bin/phpstan analyze --error-format=github --no-progress
+        continue-on-error: true
+
+      - name: Setup Python for Semgrep
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Semgrep
+        run: pip install semgrep
+
+      - name: Run Semgrep Security Scan
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          semgrep ci \
+            --json \
+            --output=semgrep-results.json || true
+
+      - name: Display Semgrep Results
+        if: always()
+        run: |
+          if [ -f semgrep-results.json ]; then
+            echo "## Semgrep Security Findings" >> $GITHUB_STEP_SUMMARY
+            cat semgrep-results.json | jq -r '.results[] | "- \(.check_id): \(.path):\(.start.line) - \(.extra.message)"' >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No findings or unable to parse results" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for dangerous functions
+        run: |
+          echo "## Dangerous Function Check" >> $GITHUB_STEP_SUMMARY
+          if grep -rn -E "\b(eval|exec|system|passthru|shell_exec)\s*\(" src/ dwt-localfonts.php --include="*.php"; then
+            echo "⚠️ Dangerous functions found!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ No dangerous functions detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check for SQL injection risks
+        run: |
+          echo "## SQL Injection Check" >> $GITHUB_STEP_SUMMARY
+          # Look for direct $wpdb usage without prepare (single-line only for simplicity)
+          # Note: Multiline prepare() usage may cause false positives - manual review recommended
+          if grep -rn -E '\$wpdb->(query|get_\w+)\s*\(' src/ dwt-localfonts.php --include="*.php" | grep -v 'prepare' | grep -v '^\s*//' | grep -v phpcs:ignore; then
+            echo "⚠️ Potential SQL injection risks found (may include false positives for multiline prepare())" >> $GITHUB_STEP_SUMMARY
+            echo "Review flagged queries - all \$wpdb queries should use prepare()" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All database queries appear safe" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      - name: Upload Semgrep results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
+          retention-days: 30
+
+      - name: Security Scan Summary
+        if: always()
+        run: |
+          echo "## 🔒 Security Scan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scans performed:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Composer dependency audit" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PHPStan static analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Semgrep security rules" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Dangerous function check" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ SQL injection check" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,172 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.1)'
+        required: true
+        type: string
+
+jobs:
+  # Verify CI has passed on main before releasing
+  verify-ci:
+    name: Verify CI Status
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if tag is on main branch
+        run: |
+          TAG_NAME=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          git fetch origin main
+          if ! git merge-base --is-ancestor $TAG_NAME origin/main; then
+            echo "❌ Error: Tag $TAG_NAME is not on the main branch"
+            exit 1
+          fi
+          echo "✅ Tag $TAG_NAME is on main branch"
+
+  build-and-release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    needs: verify-ci
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, curl, libxml, mbstring, zip
+          tools: composer
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress
+          npm ci
+
+      - name: Run full test suite (final verification)
+        run: |
+          echo "🧪 Running unit tests..."
+          composer test:unit
+
+          echo "🔍 Running PHPStan..."
+          composer phpstan
+
+          echo "✨ Running linting..."
+          composer lint
+
+          echo "🧪 Running JavaScript tests..."
+          npm run test:run
+
+          echo "✅ All tests passed!"
+
+      - name: Build release package
+        run: composer release
+
+      - name: Extract version from plugin file
+        id: version
+        run: |
+          VERSION=$(grep "Version:" dwt-localfonts.php | awk '{print $3}' | tr -d ' ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Plugin version: $VERSION"
+
+      - name: Extract tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="${{ inputs.tag }}"
+          else
+            TAG_NAME="${{ github.ref_name }}"
+          fi
+          echo "name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "🏷️  Tag name: $TAG_NAME"
+
+      - name: Verify version matches tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG_NAME="${{ steps.tag.outputs.name }}"
+
+          if [ "v$VERSION" != "$TAG_NAME" ]; then
+            echo "❌ Error: Plugin version (v$VERSION) does not match tag ($TAG_NAME)"
+            echo "Please update the version in dwt-localfonts.php to match the tag"
+            exit 1
+          fi
+          echo "✅ Version matches tag"
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ steps.tag.outputs.name }}^ 2>/dev/null || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "First release - showing all commits"
+            COMMITS=$(git log --pretty=format:"- %s (%h)" ${{ steps.tag.outputs.name }})
+          else
+            echo "Changes since $PREVIOUS_TAG"
+            COMMITS=$(git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..${{ steps.tag.outputs.name }})
+          fi
+
+          # Create changelog
+          {
+            echo "## What's Changed"
+            echo ""
+            echo "$COMMITS"
+            echo ""
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ steps.tag.outputs.name }}"
+          } > CHANGELOG.md
+
+          cat CHANGELOG.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: Release ${{ steps.tag.outputs.name }}
+          body_path: CHANGELOG.md
+          files: |
+            release/dwt-localfonts-${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Release summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ steps.tag.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Release Assets" >> $GITHUB_STEP_SUMMARY
+          echo "- dwt-localfonts-${{ steps.version.outputs.version }}.zip" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,81 @@
+name: WordPress Compatibility
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly on Monday at 9:00 UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  wordpress-tests:
+    name: WP ${{ matrix.wordpress }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3']
+        wordpress: ['latest', '6.7', '6.6', '6.5']
+        include:
+          # Test bleeding edge on PHP 8.4
+          - php: '8.4'
+            wordpress: 'trunk'
+          # Test minimum supported versions
+          - php: '8.2'
+            wordpress: '6.4'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, mysql, mysqli, pdo_mysql, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress
+          npm ci
+
+      - name: Configure wp-env for WordPress version
+        run: |
+          cat > .wp-env.override.json <<EOF
+          {
+            "core": "${{ matrix.wordpress == 'trunk' && 'WordPress/WordPress' || format('https://wordpress.org/wordpress-{0}.zip', matrix.wordpress == 'latest' && '' || matrix.wordpress) }}",
+            "phpVersion": "${{ matrix.php }}"
+          }
+          EOF
+
+      - name: Start wp-env
+        run: npx wp-env start
+
+      - name: Run integration tests
+        env:
+          XDEBUG_MODE: coverage
+        run: composer test:integration
+
+      - name: Stop wp-env
+        if: always()
+        run: npx wp-env stop
