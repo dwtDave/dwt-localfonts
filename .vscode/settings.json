@@ -1,0 +1,14 @@
+{
+    // For PHP Intelephense
+    "intelephense.diagnostics.tools": [
+        "phpcs"
+    ],
+
+    // General settings for any PHPCS extension
+    "phpcs.enable": true,
+    "phpcs.executablePath": "./vendor/bin/phpcs",
+    "phpcs.standard": "./phpcs.xml.dist",
+    "files.associations": {
+        "*.php": "php"
+    }
+}

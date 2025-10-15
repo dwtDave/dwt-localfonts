@@ -1,0 +1,92 @@
+{
+    "name": "dwt/local-fonts",
+    "description": "Manage and locally host Google Fonts for better performance and privacy compliance.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "DWT",
+            "homepage": "https://dwt.ie/"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "DWT\\LocalFonts\\": "src/"
+        },
+        "classmap": [
+            "strauss"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DWT\\LocalFonts\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=8.2",
+        "yahnis-elsts/plugin-update-checker": "^5.6",
+        "dompdf/php-font-lib": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6",
+        "brain/monkey": "^2.6",
+        "mockery/mockery": "^1.6",
+        "squizlabs/php_codesniffer": "^3.13",
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.1",
+        "wp-coding-standards/wpcs": "^3.2",
+        "php-stubs/wordpress-stubs": "^6.8",
+        "yoast/phpunit-polyfills": "^4.0",
+        "szepeviktor/phpstan-wordpress": "^2.0",
+        "phpstan/phpstan": "^2.1",
+        "brianhenryie/strauss": "^0.24.1",
+        "wp-phpunit/wp-phpunit": "^6.0"
+    },
+    "extra": {
+        "strauss": {
+            "namespace_prefix": "DWT\\LocalFonts\\Vendor\\",
+            "classmap_prefix": "DWT_LocalFonts_",
+            "target_directory": "strauss",
+            "delete_vendor_files": false,
+            "packages": [
+                "dompdf/php-font-lib"
+            ],
+            "exclude_from_prefix": {
+                "namespaces": [
+                    "DWT\\LocalFonts\\"
+                ]
+            }
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "strauss": "vendor/bin/strauss",
+        "install-hooks": "bash scripts/install-hooks.sh",
+        "post-install-cmd": [
+            "@strauss",
+            "@install-hooks"
+        ],
+        "post-update-cmd": [
+            "@strauss"
+        ],
+        "dev": "npm run dev",
+        "build": "npm run build",
+        "test": "XDEBUG_MODE=off vendor/bin/phpunit --configuration phpunit-unit.xml.dist --no-coverage",
+        "test:unit": "@test",
+        "test:integration": "npx wp-env run tests-cli --env-cwd=wp-content/plugins/dwt-localfonts vendor/bin/phpunit -c phpunit-integration.xml.dist",
+        "test:all": "bash scripts/run-all-tests.sh",
+        "test:js": "npm test",
+        "test:js:ui": "npm run test:ui",
+        "test:js:coverage": "npm run test:coverage",
+        "test:coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --configuration phpunit-coverage.xml.dist --coverage-html coverage/html --coverage-text",
+        "test:coverage-text": "XDEBUG_MODE=coverage vendor/bin/phpunit --configuration phpunit-coverage.xml.dist --coverage-text",
+        "test:coverage-clover": "XDEBUG_MODE=coverage vendor/bin/phpunit --configuration phpunit-coverage.xml.dist --coverage-clover coverage/clover.xml",
+        "lint": "vendor/bin/phpcs",
+        "lint-fix": "vendor/bin/phpcbf",
+        "phpstan": "vendor/bin/phpstan analyze  --memory-limit=1G",
+        "release": "bash scripts/build-release.sh"
+    }
+}
