@@ -3,7 +3,7 @@
  * Plugin Name:       Local Font Manager for WP
  * Plugin URI:        https://dwt.ie/
  * Description:       Manage and locally host Google Fonts for better performance and privacy compliance.
- * Version:           1.0.2
+ * Version:           1.0.3
  * Author:            DWT
  * Author URI:        https://dwt.ie/
  * License:           GPL-2.0-or-later
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'DWT_LOCAL_FONTS_VERSION', '1.0.2' );
+define( 'DWT_LOCAL_FONTS_VERSION', '1.0.3' );
 define( 'DWT_LOCAL_FONTS_PLUGIN_FILE', __FILE__ );
 
 // Check for Composer's autoloader.
