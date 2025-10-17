@@ -21,6 +21,8 @@ use DWT\LocalFonts\Services\FontStorage;
  */
 final class ErrorHandlingIntegrationTest extends \WP_UnitTestCase {
 
+	use HttpMockTrait;
+
 	/**
 	 * Temporary uploads directory for testing.
 	 *
@@ -40,6 +42,9 @@ final class ErrorHandlingIntegrationTest extends \WP_UnitTestCase {
 	 */
 	public function setUp(): void {
 		parent::setUp();
+
+		// Mock HTTP requests to prevent 404 errors in test output
+		$this->mockHttpRequests();
 
 		// Create temporary uploads directory for isolated testing
 		$this->temp_upload_dir = sys_get_temp_dir() . '/dwt-localfonts-test-' . uniqid();
@@ -64,6 +69,9 @@ final class ErrorHandlingIntegrationTest extends \WP_UnitTestCase {
 	 * Tear down test environment.
 	 */
 	public function tearDown(): void {
+		// Remove HTTP mocks
+		$this->removeHttpMocks();
+
 		// Remove upload_dir filter
 		if ( $this->original_upload_dir_filter ) {
 			remove_filter( 'upload_dir', $this->original_upload_dir_filter );

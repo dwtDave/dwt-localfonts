@@ -121,16 +121,18 @@ if ( ! function_exists( 'get_current_user_id' ) ) {
 	}
 }
 
-if ( ! function_exists( 'sanitize_text_field' ) ) {
+// Note: sanitize_text_field() and sanitize_key() are not defined here because Brain\Monkey
+// needs to be able to redefine them in unit tests. They are stubbed in each test's setUp().
+
+if ( ! function_exists( 'absint' ) ) {
 	/**
-	 * Mock sanitize_text_field function for tests.
+	 * Mock absint function for tests.
 	 *
-	 * @param string $str String to sanitize.
-	 * @return string Sanitized string.
+	 * @param mixed $maybeint Data to convert to int.
+	 * @return int Absolute integer.
 	 */
-	function sanitize_text_field( string $str ): string {
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.strip_tags_strip_tags -- Mock function for tests.
-		return trim( strip_tags( $str ) );
+	function absint( $maybeint ): int {
+		return abs( intval( $maybeint ) );
 	}
 }
 
