@@ -1,0 +1,197 @@
+name: Auto Release on Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  auto-release:
+    name: Auto Create Release
+    # Only run if PR was merged (not just closed)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Extract plugin version
+        id: version
+        run: |
+          VERSION=$(grep "Version:" dwt-localfonts.php | awk '{print $3}' | tr -d ' ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Plugin version: $VERSION"
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "⚠️  Tag $TAG already exists, skipping release creation"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Tag $TAG does not exist, will create release"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup PHP
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: dom, curl, libxml, mbstring, zip
+          tools: composer
+
+      - name: Setup Node.js
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Get Composer cache directory
+        if: steps.tag_check.outputs.exists == 'false'
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          composer install --prefer-dist --no-progress --no-dev
+          npm ci
+
+      - name: Run test suite
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          echo "🧪 Running unit tests..."
+          composer test:unit
+
+          echo "🔍 Running PHPStan..."
+          composer phpstan
+
+          echo "✨ Running linting..."
+          composer lint
+
+          echo "🧪 Running JavaScript tests..."
+          npm run test:run
+
+          echo "✅ All tests passed!"
+
+      - name: Build release package
+        if: steps.tag_check.outputs.exists == 'false'
+        run: composer release
+
+      - name: Configure git
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create and push tag
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Create annotated tag
+          git tag -a "$TAG" -m "Release version $VERSION"
+
+          # Push tag to remote
+          git push origin "$TAG"
+
+          echo "✅ Tag $TAG created and pushed successfully"
+
+      - name: Generate changelog from PR
+        if: steps.tag_check.outputs.exists == 'false'
+        id: changelog
+        run: |
+          # Get PR title and body
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "First release"
+            COMPARISON="Initial release"
+          else
+            COMPARISON="**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${{ steps.version.outputs.tag }}"
+          fi
+
+          # Create changelog
+          {
+            echo "## What's Changed"
+            echo ""
+            echo "### Merged PR"
+            echo "- $PR_TITLE (#$PR_NUMBER) by @$PR_AUTHOR"
+            echo "  - $PR_URL"
+            echo ""
+            echo "### Commits"
+            if [ -z "$PREVIOUS_TAG" ]; then
+              git log --pretty=format:"- %s (%h)" ${{ steps.version.outputs.tag }}
+            else
+              git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..${{ steps.version.outputs.tag }}
+            fi
+            echo ""
+            echo ""
+            echo "$COMPARISON"
+          } > CHANGELOG.md
+
+          cat CHANGELOG.md
+
+      - name: Create GitHub Release
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body_path: CHANGELOG.md
+          files: |
+            release/dwt-localfonts-${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Release summary
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          echo "## 🎉 Release Created Automatically!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** PR #${{ github.event.pull_request.number }} merge to main" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Release Assets" >> $GITHUB_STEP_SUMMARY
+          echo "- dwt-localfonts-${{ steps.version.outputs.version }}.zip" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skipped summary
+        if: steps.tag_check.outputs.exists == 'true'
+        run: |
+          echo "## ℹ️ Release Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tag ${{ steps.version.outputs.tag }} already exists." >> $GITHUB_STEP_SUMMARY
+          echo "No new release was created." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Tip:** Update the version in dwt-localfonts.php before merging to create a new release." >> $GITHUB_STEP_SUMMARY

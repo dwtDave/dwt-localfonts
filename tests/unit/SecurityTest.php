@@ -34,6 +34,7 @@ final class SecurityTest extends TestCase {
 				return rtrim( $string, '/\\' ) . '/';
 			}
 		);
+		Functions\when( 'sanitize_text_field' )->returnArg();
 	}
 
 	/**

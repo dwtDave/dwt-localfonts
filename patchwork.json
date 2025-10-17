@@ -1,6 +1,14 @@
 {
 	"redefinable-internals": [
 		"filesize",
-		"filemtime"
+		"filemtime",
+		"file_exists",
+		"is_readable",
+		"class_exists",
+		"error_log",
+		"version_compare",
+		"fopen",
+		"flock",
+		"fclose"
 	]
 }

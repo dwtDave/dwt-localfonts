@@ -41,6 +41,7 @@ final class UninstallPromptTest extends TestCase {
 
 		// Mock common WordPress functions.
 		Functions\when( 'plugin_dir_url' )->justReturn( 'https://example.com/wp-content/plugins/dwt-local-fonts/' );
+		Functions\when( 'sanitize_text_field' )->returnArg();
 	}
 
 	/**

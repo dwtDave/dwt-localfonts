@@ -48,6 +48,7 @@ final class Core {
 	private function __construct() {
 		$this->add_hooks();
 		$this->initialize_modules();
+		$this->initialize_github_updates();
 	}
 
 	/**
@@ -57,6 +58,50 @@ final class Core {
 		// IMPROVEMENT: Removed unnecessary function_exists check.
 		// IMPROVEMENT: Switched to modern short array syntax.
 		\add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
+		\add_action( 'admin_menu', array( $this, 'register_settings_page' ) );
+		\add_action( 'admin_init', array( $this, 'register_settings' ) );
+	}
+
+	/**
+	 * Register settings page
+	 *
+	 * @return void
+	 */
+	public function register_settings_page(): void {
+		try {
+			$settingsPage = new Admin\UpdateSettingsPage();
+			$settingsPage->registerMenu();
+		} catch ( \Throwable $e ) {
+			if ( ! defined( 'PHPUNIT_RUNNING' ) || ! PHPUNIT_RUNNING ) {
+				error_log(
+					sprintf(
+						'Failed to register settings page: %s',
+						\esc_html( $e->getMessage() )
+					)
+				);
+			}
+		}
+	}
+
+	/**
+	 * Register settings
+	 *
+	 * @return void
+	 */
+	public function register_settings(): void {
+		try {
+			$settingsPage = new Admin\UpdateSettingsPage();
+			$settingsPage->registerSettings();
+		} catch ( \Throwable $e ) {
+			if ( ! defined( 'PHPUNIT_RUNNING' ) || ! PHPUNIT_RUNNING ) {
+				error_log(
+					sprintf(
+						'Failed to register settings: %s',
+						\esc_html( $e->getMessage() )
+					)
+				);
+			}
+		}
 	}
 
 	/**
@@ -99,6 +144,70 @@ final class Core {
 					);
 					error_log( $error_message ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				}
+			}
+		}
+	}
+
+	/**
+	 * Initialize GitHub update integration
+	 *
+	 * Registers hooks for checking plugin updates from GitHub releases.
+	 *
+	 * @return void
+	 */
+	private function initialize_github_updates(): void {
+		try {
+			// Load update configuration from options
+			$configData = \get_option( 'dwt_localfonts_github_config', [] );
+
+			// Use default configuration if not set
+			if ( empty( $configData ) ) {
+				// Set default configuration
+				$configData = [
+					'repository_owner'    => 'your-github-username',
+					'repository_name'     => 'dwt-localfonts',
+					'plugin_slug'         => 'dwt-localfonts',
+					'cache_lifetime'      => 43200, // 12 hours
+					'update_channel'      => 'stable',
+					'auto_update_enabled' => false,
+				];
+				\update_option( 'dwt_localfonts_github_config', $configData );
+			}
+
+			// Create UpdateConfiguration value object
+			$config = new ValueObjects\UpdateConfiguration(
+				repositoryOwner: $configData['repository_owner'],
+				repositoryName: $configData['repository_name'],
+				pluginSlug: $configData['plugin_slug'],
+				cacheLifetime: $configData['cache_lifetime'],
+				updateChannel: $configData['update_channel'],
+				autoUpdateEnabled: $configData['auto_update_enabled']
+			);
+
+			// Initialize services
+			$assetResolver  = new Services\AssetResolver();
+			$logger         = new Services\UpdateLogger();
+			$updateService  = new Services\GitHubUpdateService( $config, $assetResolver, $logger );
+			$installer      = new Services\UpdateInstaller( $configData['plugin_slug'], $logger );
+			$integration    = new Services\PluginUpdateIntegration(
+				$updateService,
+				\plugin_basename( DWT_LOCAL_FONTS_PLUGIN_FILE ),
+				$installer,
+				$configData['auto_update_enabled'] ?? false
+			);
+
+			// Register WordPress hooks
+			$integration->registerHooks();
+
+		} catch ( \Throwable $e ) {
+			// Skip error logging during tests
+			if ( ! defined( 'PHPUNIT_RUNNING' ) || ! PHPUNIT_RUNNING ) {
+				error_log(
+					sprintf(
+						'Failed to initialize GitHub updates: %s',
+						\esc_html( $e->getMessage() )
+					)
+				); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			}
 		}
 	}

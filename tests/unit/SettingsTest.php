@@ -46,6 +46,7 @@ final class SettingsTest extends TestCase {
 		Functions\when( 'plugin_dir_path' )->justReturn( '/var/www/wp-content/plugins/dwt-management-for-wp/' );
 		Functions\when( 'get_option' )->justReturn( array() );
 		Functions\when( 'update_option' )->justReturn( true );
+		Functions\when( 'sanitize_key' )->returnArg();
 
 		$this->settings = new Settings();
 	}
@@ -104,7 +105,6 @@ final class SettingsTest extends TestCase {
 				)
 			);
 
-		Functions\when( 'sanitize_key' )->returnArg();
 		Functions\when( 'update_option' )->justReturn( true );
 		Functions\when( 'wp_verify_nonce' )->justReturn( true );
 		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
@@ -198,7 +198,6 @@ final class SettingsTest extends TestCase {
 				)
 			);
 
-		Functions\when( 'sanitize_key' )->returnArg();
 		Functions\when( 'update_option' )->justReturn( true );
 		Functions\when( 'wp_verify_nonce' )->justReturn( true );
 
@@ -228,7 +227,6 @@ final class SettingsTest extends TestCase {
 				)
 			);
 
-		Functions\when( 'sanitize_key' )->returnArg();
 		Functions\when( 'update_option' )->justReturn( true );
 		Functions\when( 'wp_verify_nonce' )->justReturn( true );
 
@@ -259,7 +257,6 @@ final class SettingsTest extends TestCase {
 				)
 			);
 
-		Functions\when( 'sanitize_key' )->returnArg();
 		Functions\when( 'update_option' )->justReturn( true );
 		Functions\when( 'wp_verify_nonce' )->justReturn( true );
 		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
